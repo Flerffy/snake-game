@@ -1,7 +1,10 @@
 import pygame
 from constants import *
 
-# Draw game menu
+
+# Keep functional drawing helpers but provide a Menu wrapper class so
+# `game.py` can construct a Menu instance and call `display_main_menu()`.
+
 def draw_menu(screen):
     screen.fill(ACTIVE_THEME['background_color'])
     font = pygame.font.Font(None, 48)
@@ -15,13 +18,15 @@ def draw_menu(screen):
     screen.blit(start_text, (SCREEN_WIDTH // 2 - start_text.get_width() // 2, 250))
     screen.blit(quit_text, (SCREEN_WIDTH // 2 - quit_text.get_width() // 2, 300))
     pygame.display.flip()
-    
-# navigate menu options using W and S keys
+
+
 def navigate_menu():
     selected_option = 0
     options = ['start_game', 'settings', 'quit']
     while True:
         for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return 'quit'
             if event.type == pygame.KEYDOWN:
                 if event.key == UP_KEY:
                     selected_option = (selected_option - 1) % len(options)
@@ -30,13 +35,13 @@ def navigate_menu():
                 elif event.key == pygame.K_RETURN:
                     return options[selected_option]
 
-# set selected text color to yellow
+
 def highlight_selection(text_surface):
     highlighted_surface = text_surface.copy()
     highlighted_surface.fill((255, 255, 0), special_flags=pygame.BLEND_RGB_ADD)
     return highlighted_surface
-            
-# set game state to button pressed
+
+
 def set_game_state(state, game_manager):
     if state == 'start_game':
         game_manager.start_game()
@@ -45,9 +50,7 @@ def set_game_state(state, game_manager):
     elif state == 'quit':
         game_manager.quit_game()
 
-## Settings menu
 
-# Draw settings menu with options for graphics, audio, and controls
 def draw_settings_menu(screen):
     screen.fill(ACTIVE_THEME['background_color'])
     font = pygame.font.Font(None, 48)
@@ -65,12 +68,14 @@ def draw_settings_menu(screen):
     screen.blit(back_text, (SCREEN_WIDTH // 2 - back_text.get_width() // 2, 400))
     pygame.display.flip()
 
-    # navigate settings options using W and S keys
+
 def navigate_settings_menu():
     selected_option = 0
     options = ['graphics', 'audio', 'controls', 'back']
     while True:
         for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return 'back'
             if event.type == pygame.KEYDOWN:
                 if event.key == UP_KEY:
                     selected_option = (selected_option - 1) % len(options)
@@ -78,14 +83,14 @@ def navigate_settings_menu():
                     selected_option = (selected_option + 1) % len(options)
                 elif event.key == pygame.K_RETURN:
                     return options[selected_option]
-                
-    # set selected text color to yellow
+
+
 def highlight_settings_selection(text_surface):
     highlighted_surface = text_surface.copy()
     highlighted_surface.fill((255, 255, 0), special_flags=pygame.BLEND_RGB_ADD)
     return highlighted_surface
 
-# set game state to button pressed in settings menu
+
 def set_settings_state(state, game_manager):
     if state == 'graphics':
         game_manager.open_graphics_settings()
@@ -96,7 +101,7 @@ def set_settings_state(state, game_manager):
     elif state == 'back':
         game_manager.back_to_menu()
 
-# Draw graphics settings menu
+
 def draw_graphics_settings_menu(screen):
     screen.fill(ACTIVE_THEME['background_color'])
     font = pygame.font.Font(None, 48)
@@ -112,12 +117,14 @@ def draw_graphics_settings_menu(screen):
     screen.blit(back_text, (SCREEN_WIDTH // 2 - back_text.get_width() // 2, 350))
     pygame.display.flip()
 
-# navigate graphics settings options using W and S keys
+
 def navigate_graphics_settings_menu():
     selected_option = 0
     options = ['resolution', 'fullscreen', 'back']
     while True:
         for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return 'back'
             if event.type == pygame.KEYDOWN:
                 if event.key == UP_KEY:
                     selected_option = (selected_option - 1) % len(options)
@@ -126,33 +133,35 @@ def navigate_graphics_settings_menu():
                 elif event.key == pygame.K_RETURN:
                     return options[selected_option]
 
-# set selected text color to yellow
+
 def highlight_graphics_selection(text_surface):
     highlighted_surface = text_surface.copy()
     highlighted_surface.fill((255, 255, 0), special_flags=pygame.BLEND_RGB_ADD)
     return highlighted_surface
 
+
 # Resolution option uses dropdown menu to select resolution from available options
 # options: 10:9 aspect ratio resolutions
 AVAILABLE_RESOLUTIONS = [(1200, 1080), (1000, 900), (800, 720), (600, 540), (400, 360)]
 
-# press enter to select resolution
+
 def set_graphics_state(state, game_manager):
     if state == 'resolution':
+        # choose first available as a fallback
         game_manager.change_resolution(AVAILABLE_RESOLUTIONS)
     elif state == 'fullscreen':
         game_manager.toggle_fullscreen()
     elif state == 'back':
         game_manager.back_to_settings()
 
-# Fullscreen option toggles between windowed and fullscreen modes when selected
-def toggle_fullscreen_mode(game_manager):
-    global FULLSCREEN_MODE
-    FULLSCREEN_MODE = not FULLSCREEN_MODE
-    game_manager.apply_graphics_settings()
 
-# update graphics settings in constants.py to new resolution and fullscreen mode
+def toggle_fullscreen_mode(game_manager):
+    # prefer using GameManager.toggle_fullscreen which updates display
+    game_manager.toggle_fullscreen()
+
+
 def apply_graphics_settings(new_resolution, fullscreen_mode):
+    # convenience helper that uses pygame directly; menu uses GameManager methods
     global SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE
     SCREEN_WIDTH, SCREEN_HEIGHT = new_resolution
     FULLSCREEN_MODE = fullscreen_mode
@@ -162,13 +171,11 @@ def apply_graphics_settings(new_resolution, fullscreen_mode):
         pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.flip()
 
-# pressing enter on Back to Settings returns to settings menu
+
 def back_to_settings_menu(game_manager):
     game_manager.open_settings()
 
-## Audio settings menu
 
-# draw volume sliders with current volume level displayed
 def draw_audio_settings_menu(screen, music_volume, sfx_volume):
     screen.fill(ACTIVE_THEME['background_color'])
     font = pygame.font.Font(None, 48)
@@ -184,7 +191,7 @@ def draw_audio_settings_menu(screen, music_volume, sfx_volume):
     screen.blit(back_text, (SCREEN_WIDTH // 2 - back_text.get_width() // 2, 350))
     pygame.display.flip()
 
-# update volume levels based on slider position
+
 def set_audio_state(state, game_manager):
     if state == 'music_volume':
         game_manager.adjust_music_volume()
@@ -193,9 +200,7 @@ def set_audio_state(state, game_manager):
     elif state == 'back':
         game_manager.back_to_settings()
 
-## Controls settings menu
 
-# draw current key bindings for movement and pause
 def draw_control_settings_menu(screen, up_key, down_key, left_key, right_key, pause_key):
     screen.fill(ACTIVE_THEME['background_color'])
     font = pygame.font.Font(None, 48)
@@ -217,7 +222,7 @@ def draw_control_settings_menu(screen, up_key, down_key, left_key, right_key, pa
     screen.blit(back_text, (SCREEN_WIDTH // 2 - back_text.get_width() // 2, 450))
     pygame.display.flip()
 
-# update key bindings based on user input
+
 def set_control_state(state, game_manager):
     if state == 'up_key':
         game_manager.rebind_key('up')
@@ -231,6 +236,98 @@ def set_control_state(state, game_manager):
         game_manager.rebind_key('pause')
     elif state == 'back':
         game_manager.back_to_settings()
+
+
+class Menu:
+    """Small Menu wrapper so callers can use an object and avoid
+    depending on top-level functions directly.
+    """
+
+    def __init__(self, game_manager):
+        self.game_manager = game_manager
+
+    def display_main_menu(self):
+        # Interactive main menu: redraws on selection change and responds to
+        # both WASD and arrow keys. Press Enter to select.
+        options = [
+            ("Start Game", 'start_game'),
+            ("Settings", 'settings'),
+            ("Quit", 'quit'),
+        ]
+        selected = 0
+        screen = self.game_manager.screen
+        clock = getattr(self.game_manager, 'clock', pygame.time.Clock())
+        # Use the constants for title/option font sizes
+        title_font = pygame.font.Font(None, MENU_TITLE_FONT_SIZE)
+        menu_font = pygame.font.Font(None, MENU_OPTION_FONT_SIZE)
+
+        while self.game_manager.running and self.game_manager.state == GAME_STATES['MENU']:
+            # Use the pre-created fonts from above (sizes come from constants)
+            # Prepare and compute option rects so we can check mouse events
+
+            # Precompute option rectangles (including padding) for mouse hit testing
+            option_rects = []
+            y = 250
+            for i, (label, _) in enumerate(options):
+                text_surf = menu_font.render(label, True, ACTIVE_THEME['text_color'])
+                x = SCREEN_WIDTH // 2 - text_surf.get_width() // 2
+                # hit-rect uses small padding but we won't draw a background rectangle;
+                # this keeps mouse targeting slightly forgiving while highlighting only text.
+                rect = pygame.Rect(x - 6, y - 4, text_surf.get_width() + 12, text_surf.get_height() + 6)
+                option_rects.append(rect)
+                y += MENU_OPTION_FONT_SIZE + 10
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.game_manager.quit_game()
+                    return
+                # keyboard navigation
+                if event.type == pygame.KEYDOWN:
+                    if event.key in (UP_KEY, pygame.K_w, pygame.K_UP):
+                        selected = (selected - 1) % len(options)
+                    elif event.key in (DOWN_KEY, pygame.K_s, pygame.K_DOWN):
+                        selected = (selected + 1) % len(options)
+                    elif event.key == pygame.K_RETURN:
+                        label, action = options[selected]
+                        set_game_state(action, self.game_manager)
+                        if action in ('start_game', 'quit'):
+                            return
+
+                # mouse movement: highlight hovered option
+                if event.type == pygame.MOUSEMOTION:
+                    for i, rect in enumerate(option_rects):
+                        if rect.collidepoint(event.pos):
+                            selected = i
+                            break
+
+                # mouse click: select option
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    for i, rect in enumerate(option_rects):
+                        if rect.collidepoint(event.pos):
+                            label, action = options[i]
+                            set_game_state(action, self.game_manager)
+                            if action in ('start_game', 'quit'):
+                                return
+
+            # draw menu with highlight
+            screen.fill(ACTIVE_THEME['background_color'])
+            title_text = title_font.render(GAME_TITLE, True, ACTIVE_THEME['text_color'])
+            screen.blit(title_text, (SCREEN_WIDTH // 2 - title_text.get_width() // 2, 100))
+
+            # draw options using the precomputed rects; highlight by changing text color only
+            y = 250
+            for i, (label, _) in enumerate(options):
+                text_color = ACTIVE_THEME['text_color']
+                if i == selected:
+                    text_surf = menu_font.render(label, True, (255, 255, 0))
+                else:
+                    text_surf = menu_font.render(label, True, text_color)
+                x = SCREEN_WIDTH // 2 - text_surf.get_width() // 2
+                screen.blit(text_surf, (x, y))
+                y += MENU_OPTION_FONT_SIZE + 10
+
+            pygame.display.flip()
+            clock.tick(FPS)
 
 
 

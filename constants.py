@@ -4,9 +4,10 @@ import pygame
 ## Configurable game settings
 
 # Graphics settings
-# Screen resolution (Default 1000x900)
-SCREEN_WIDTH = 1000  # Width of the game window in pixels
-SCREEN_HEIGHT = 900  # Height of the game window in pixels
+# Screen resolution: derived from game area below (can be overridden)
+# If you want a different window size, set SCREEN_WIDTH / SCREEN_HEIGHT here.
+SCREEN_WIDTH = None
+SCREEN_HEIGHT = None
 
 # Windowed  (True by default)
 WINDOWED_MODE = True  # True for windowed mode, False for fullscreen
@@ -14,28 +15,40 @@ WINDOWED_MODE = True  # True for windowed mode, False for fullscreen
 # Fullscreen mode (False by default)
 FULLSCREEN_MODE = False  # True for fullscreen mode, False for windowed
 
-# Color Scheme (Light or Dark; Default Dark)
-COLOR_SCHEME = 'Dark'  # Options: 'Light', 'Dark'
+# Default theme name (used to build the active theme dict)
+DEFAULT_THEME_NAME = 'Dark'  # Options: 'Light', 'Dark'
 
-# Color values for Dark Theme
-class DARK_THEME_COLORS:
-    'background'== (30, 30, 30),
-    'snake'== (0, 255, 0),
-    'food'== (255, 0, 0),
-    'border'== (255, 255, 255)
+# Theme color dictionaries (use explicit keys expected by the UI)
+DARK_THEME = {
+    'background_color': (30, 30, 30),
+    'text_color': (255, 255, 255),
+    'snake_color': (0, 255, 0),
+    'food_color': (255, 0, 0),
+    'border_color': (255, 255, 255),
+}
 
-# Color values for Light Theme
-class LIGHT_THEME_COLORS: 
-    'background'== (220, 220, 220),
-    'snake'== (0, 100, 0),
-    'food'== (200, 0, 0),
-    'border'== (0, 0, 0)
+LIGHT_THEME = {
+    'background_color': (220, 220, 220),
+    'text_color': (0, 0, 0),
+    'snake_color': (0, 100, 0),
+    'food_color': (200, 0, 0),
+    'border_color': (0, 0, 0),
+}
 
 THEME_MAP = {
-    'Dark': DARK_THEME_COLORS,
-    'Light': LIGHT_THEME_COLORS
+    'Dark': DARK_THEME,
+    'Light': LIGHT_THEME,
 }
-ACTIVE_THEME ='Dark'
+
+# The active theme is the resolved dict for the selected theme name
+ACTIVE_THEME = THEME_MAP[DEFAULT_THEME_NAME]
+
+# Menu / UI sizes (tweakable)
+MENU_TITLE_FONT_SIZE = 40
+MENU_OPTION_FONT_SIZE = 28
+
+# Center the game area inside the window (adds margins) when True
+CENTER_GAME_AREA = True
 
 # Audio settings
 # Music Volume
@@ -61,8 +74,10 @@ SNAKE_SPEED = 15  # Speed of the snake in the game
 INITIAL_SNAKE_LENGTH = 3  # Starting length of the snake
 
 # Game area dimensions
-GAME_WIDTH = 800  # Width of the game area in pixels
-GAME_HEIGHT = 800  # Height of the game area in pixels
+# Reduce the playable area by ~25% to avoid overly large windows on small screens.
+# This keeps the game visible and leaves room for window controls.
+GAME_WIDTH = 600  # Width of the game area in pixels (was 800)
+GAME_HEIGHT = 600  # Height of the game area in pixels (was 800)
 
 # Game area border
 BORDER_SIZE = 5  # Size of the border around the game area in pixels
@@ -79,7 +94,7 @@ DIRECTIONS = {
     'DOWN': (0, 1),
     'LEFT': (-1, 0),
     'RIGHT': (1, 0)
-}   
+}
 
 # Game States
 GAME_STATES = {
@@ -88,3 +103,15 @@ GAME_STATES = {
     'PAUSED': 2,
     'GAME_OVER': 3
 }
+
+# If SCREEN_WIDTH / SCREEN_HEIGHT were not set earlier, derive them to tightly
+# fit the game area plus borders. This keeps the window from being excessively
+# large by default while still allowing override at the top of this file.
+# Add a bit of horizontal padding so the game area doesn't touch the window
+# edges and there's space left/right for UI or window controls.
+SIDE_PADDING = int(GAME_WIDTH * 0.25)  # ~25% extra horizontal space
+
+if SCREEN_WIDTH is None:
+    SCREEN_WIDTH = GAME_WIDTH + 2 * BORDER_SIZE + SIDE_PADDING
+if SCREEN_HEIGHT is None:
+    SCREEN_HEIGHT = GAME_HEIGHT + 2 * BORDER_SIZE
