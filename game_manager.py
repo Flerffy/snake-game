@@ -1,7 +1,31 @@
 import pygame
-from constants import *
+import json
+import os
+from constants import (
+    SCREEN_WIDTH,
+    SCREEN_HEIGHT,
+    GAME_TITLE,
+    FPS,
+    MUSIC_VOLUME,
+    SFX_VOLUME,
+    UP_KEY,
+    DOWN_KEY,
+    LEFT_KEY,
+    RIGHT_KEY,
+    PAUSE_KEY,
+    GAME_STATES,
+    ACTIVE_THEME,
+    FULLSCREEN_MODE,
+    SNAKE_SPEED,
+    BORDER_SIZE,
+    GAME_WIDTH,
+    GAME_HEIGHT,
+    CELL_SIZE,
+    DIRECTIONS,
+    CENTER_GAME_AREA,
+)
 from objects import Snake, Food
-from sounds import play_sfx, init_sounds
+from sounds import play_sfx, init_sounds, set_bgm_volume, set_sfx_volume
 
 
 class GameManager:
@@ -19,6 +43,33 @@ class GameManager:
         # initialize sounds early to avoid first-play hiccup
         try:
             init_sounds()
+        except Exception:
+            pass
+
+        # audio state (kept on GameManager so Menu can read/update them)
+        self.music_volume = MUSIC_VOLUME
+        self.sfx_volume = SFX_VOLUME
+
+        # key bindings (defaults from constants) — stored here so they can be rebound
+        self.keys = {
+            'up': UP_KEY,
+            'down': DOWN_KEY,
+            'left': LEFT_KEY,
+            'right': RIGHT_KEY,
+            'pause': PAUSE_KEY,
+        }
+
+        # settings file path
+        self._settings_path = os.path.join(os.path.dirname(__file__), 'settings.json')
+        # load saved settings if present
+        try:
+            self.load_settings()
+        except Exception:
+            pass
+
+        try:
+            set_bgm_volume(self.music_volume)
+            set_sfx_volume(self.sfx_volume)
         except Exception:
             pass
 
@@ -51,15 +102,15 @@ class GameManager:
             if event.type == pygame.KEYDOWN and self.state == GAME_STATES['PLAYING']:
                 # ensure snake exists before calling its methods (static analyzers may warn)
                 if self.snake:
-                    if event.key in (UP_KEY, pygame.K_w, pygame.K_UP):
+                    if event.key == self.keys.get('up'):
                         self.snake.change_direction(DIRECTIONS['UP'])
-                    elif event.key in (DOWN_KEY, pygame.K_s, pygame.K_DOWN):
+                    elif event.key == self.keys.get('down'):
                         self.snake.change_direction(DIRECTIONS['DOWN'])
-                    elif event.key in (LEFT_KEY, pygame.K_a, pygame.K_LEFT):
+                    elif event.key == self.keys.get('left'):
                         self.snake.change_direction(DIRECTIONS['LEFT'])
-                    elif event.key in (RIGHT_KEY, pygame.K_d, pygame.K_RIGHT):
+                    elif event.key == self.keys.get('right'):
                         self.snake.change_direction(DIRECTIONS['RIGHT'])
-                if event.key == PAUSE_KEY:
+                if event.key == self.keys.get('pause'):
                     self.state = GAME_STATES['PAUSED']
             elif event.type == pygame.KEYDOWN and self.state == GAME_STATES['PAUSED']:
                 if event.key == PAUSE_KEY:
@@ -85,8 +136,12 @@ class GameManager:
 
             # check wall collisions
             head = self.snake.head
-            if (head.x < BORDER_SIZE or head.y < BORDER_SIZE or
-                head.x >= BORDER_SIZE + GAME_WIDTH or head.y >= BORDER_SIZE + GAME_HEIGHT):
+            # check for wall collisions (split expressions for readability)
+            hit_left = head.x < BORDER_SIZE
+            hit_top = head.y < BORDER_SIZE
+            hit_right = head.x >= (BORDER_SIZE + GAME_WIDTH)
+            hit_bottom = head.y >= (BORDER_SIZE + GAME_HEIGHT)
+            if hit_left or hit_top or hit_right or hit_bottom:
                 try:
                     play_sfx('low_beep', volume=SFX_VOLUME)
                 except Exception:
@@ -138,28 +193,36 @@ class GameManager:
             # draw border
             border_color = self.theme.get('border_color', (255, 255, 255))
             # top
-            pygame.draw.rect(self.screen, border_color, (area_x, area_y, GAME_WIDTH + 2 * BORDER_SIZE, BORDER_SIZE))
+            top_rect = (area_x, area_y, GAME_WIDTH + 2 * BORDER_SIZE, BORDER_SIZE)
+            pygame.draw.rect(self.screen, border_color, top_rect)
             # bottom
-            pygame.draw.rect(self.screen, border_color, (area_x, area_y + GAME_HEIGHT + BORDER_SIZE, GAME_WIDTH + 2 * BORDER_SIZE, BORDER_SIZE))
+            bottom_rect = (area_x, area_y + GAME_HEIGHT + BORDER_SIZE, GAME_WIDTH + 2 * BORDER_SIZE, BORDER_SIZE)
+            pygame.draw.rect(self.screen, border_color, bottom_rect)
             # left
-            pygame.draw.rect(self.screen, border_color, (area_x, area_y, BORDER_SIZE, GAME_HEIGHT + 2 * BORDER_SIZE))
+            left_rect = (area_x, area_y, BORDER_SIZE, GAME_HEIGHT + 2 * BORDER_SIZE)
+            pygame.draw.rect(self.screen, border_color, left_rect)
             # right
-            pygame.draw.rect(self.screen, border_color, (area_x + GAME_WIDTH + BORDER_SIZE, area_y, BORDER_SIZE, GAME_HEIGHT + 2 * BORDER_SIZE))
+            right_rect = (area_x + GAME_WIDTH + BORDER_SIZE, area_y, BORDER_SIZE, GAME_HEIGHT + 2 * BORDER_SIZE)
+            pygame.draw.rect(self.screen, border_color, right_rect)
 
             # draw food
             if self.food:
                 p = getattr(self.food, 'position', None)
                 if p is not None:
                     food_color = self.theme.get('food_color', (255, 0, 0))
-                    pygame.draw.rect(self.screen, food_color, (area_x + p.x, area_y + p.y, CELL_SIZE, CELL_SIZE))
-                    pygame.draw.rect(self.screen, (0, 0, 0), (area_x + p.x, area_y + p.y, CELL_SIZE, CELL_SIZE), 1)
+                    fx = area_x + p.x
+                    fy = area_y + p.y
+                    pygame.draw.rect(self.screen, food_color, (fx, fy, CELL_SIZE, CELL_SIZE))
+                    pygame.draw.rect(self.screen, (0, 0, 0), (fx, fy, CELL_SIZE, CELL_SIZE), 1)
 
             # draw snake
             if self.snake:
                 snake_color = self.theme.get('snake_color', (0, 255, 0))
                 for seg in self.snake.segments:
-                    pygame.draw.rect(self.screen, snake_color, (area_x + seg.x, area_y + seg.y, CELL_SIZE, CELL_SIZE))
-                    pygame.draw.rect(self.screen, (0, 0, 0), (area_x + seg.x, area_y + seg.y, CELL_SIZE, CELL_SIZE), 1)
+                    sx = area_x + seg.x
+                    sy = area_y + seg.y
+                    pygame.draw.rect(self.screen, snake_color, (sx, sy, CELL_SIZE, CELL_SIZE))
+                    pygame.draw.rect(self.screen, (0, 0, 0), (sx, sy, CELL_SIZE, CELL_SIZE), 1)
 
             # draw score
             font = pygame.font.SysFont(None, 36)
@@ -175,7 +238,9 @@ class GameManager:
             font = pygame.font.SysFont(None, 72)
             text_color = self.theme.get('text_color', (255, 255, 255))
             pause_surf = font.render("PAUSED", True, text_color)
-            pause_rect = pause_surf.get_rect(center=(area_x + BORDER_SIZE + GAME_WIDTH // 2, area_y + BORDER_SIZE + GAME_HEIGHT // 2))
+            pause_cx = area_x + BORDER_SIZE + GAME_WIDTH // 2
+            pause_cy = area_y + BORDER_SIZE + GAME_HEIGHT // 2
+            pause_rect = pause_surf.get_rect(center=(pause_cx, pause_cy))
             self.screen.blit(pause_surf, pause_rect)
 
         elif self.state == GAME_STATES['GAME_OVER']:
@@ -185,11 +250,13 @@ class GameManager:
             font = pygame.font.SysFont(None, 72)
             text_color = self.theme.get('text_color', (255, 255, 255))
             game_over_surf = font.render("GAME OVER", True, text_color)
-            game_over_rect = game_over_surf.get_rect(center=(area_x + BORDER_SIZE + GAME_WIDTH // 2, area_y + BORDER_SIZE + GAME_HEIGHT // 2 - 40))
+            game_over_cx = area_x + BORDER_SIZE + GAME_WIDTH // 2
+            game_over_cy = area_y + BORDER_SIZE + GAME_HEIGHT // 2
+            game_over_rect = game_over_surf.get_rect(center=(game_over_cx, game_over_cy - 40))
             self.screen.blit(game_over_surf, game_over_rect)
             score_font = pygame.font.SysFont(None, 48)
             score_surf = score_font.render(f"Final Score: {self.score}", True, text_color)
-            score_rect = score_surf.get_rect(center=(area_x + BORDER_SIZE + GAME_WIDTH // 2, area_y + BORDER_SIZE + GAME_HEIGHT // 2 + 40))
+            score_rect = score_surf.get_rect(center=(game_over_cx, game_over_cy + 40))
             self.screen.blit(score_surf, score_rect)
 
         pygame.display.flip()
@@ -266,14 +333,99 @@ class GameManager:
         self.state = GAME_STATES['PAUSED']
 
     def adjust_music_volume(self, level=None):
-        # placeholder: if level provided, clamp and set; otherwise no-op
+        # if level provided, clamp and set the music volume
         if level is not None:
             level = max(0.0, min(1.0, float(level)))
+            self.music_volume = level
+            try:
+                set_bgm_volume(self.music_volume)
+            except Exception:
+                pass
+            try:
+                self.save_settings()
+            except Exception:
+                pass
+        return self.music_volume
 
     def adjust_sfx_volume(self, level=None):
         if level is not None:
             level = max(0.0, min(1.0, float(level)))
+            self.sfx_volume = level
+            try:
+                set_sfx_volume(self.sfx_volume)
+            except Exception:
+                pass
+            try:
+                self.save_settings()
+            except Exception:
+                pass
+        return self.sfx_volume
+
+    # Settings persistence
+    def load_settings(self):
+        if not os.path.exists(self._settings_path):
+            return
+        try:
+            with open(self._settings_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            # apply stored settings if present
+            self.music_volume = float(data.get('music_volume', self.music_volume))
+            self.sfx_volume = float(data.get('sfx_volume', self.sfx_volume))
+            # keys may be stored as numbers
+            keys = data.get('keys', {})
+            for k in ('up', 'down', 'left', 'right', 'pause'):
+                if k in keys:
+                    try:
+                        self.keys[k] = int(keys[k])
+                    except Exception:
+                        pass
+            # resolution/fullscreen
+            res = data.get('resolution')
+            if isinstance(res, list) and len(res) == 2:
+                try:
+                    self.change_resolution((int(res[0]), int(res[1])))
+                except Exception:
+                    pass
+            fs = data.get('fullscreen')
+            if isinstance(fs, bool):
+                self.fullscreen = fs
+        except Exception:
+            # ignore corrupt settings
+            pass
+
+    def save_settings(self):
+        data = {
+            'music_volume': self.music_volume,
+            'sfx_volume': self.sfx_volume,
+            'keys': {k: int(v) for k, v in self.keys.items()},
+            'resolution': [SCREEN_WIDTH, SCREEN_HEIGHT],
+            'fullscreen': bool(self.fullscreen),
+        }
+        try:
+            with open(self._settings_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2)
+        except Exception:
+            pass
 
     def rebind_key(self, identifier):
-        # placeholder for rebinding control keys
+        # identifier is expected to be one of 'up','down','left','right','pause'
+        # The actual new key should be set by Menu via direct call to this method
+        # with an integer key value. To support older callsites, accept either
+        # a string (key name) -> no-op, or a tuple/list/number -> set mapping.
+        if identifier is None:
+            return
+        # If user passed a mapping dict, merge
+        if isinstance(identifier, dict):
+            for k, v in identifier.items():
+                if k in self.keys:
+                    try:
+                        self.keys[k] = int(v)
+                    except Exception:
+                        pass
+            try:
+                self.save_settings()
+            except Exception:
+                pass
+            return
+        # otherwise no direct action here; Menu will call set and save
         return

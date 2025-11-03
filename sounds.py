@@ -155,7 +155,13 @@ def init_sounds(load_beep=True, freq_hz=880, duration_ms=120, volume=0.5, sample
             e8 = e4 * 16.0
             g8 = g4 * 16.0
             if not os.path.exists(_BEEP_PATH):
-                _create_chord_wav(_BEEP_PATH, freqs=[c8, e8, g8], duration_ms=duration_ms, volume=volume, sample_rate=sample_rate)
+                chord_args = {
+                    'freqs': [c8, e8, g8],
+                    'duration_ms': duration_ms,
+                    'volume': volume,
+                    'sample_rate': sample_rate,
+                }
+                _create_chord_wav(_BEEP_PATH, **chord_args)
             snd = pygame.mixer.Sound(_BEEP_PATH)
             _SFX['beep'] = snd
             # also create a low-frequency C-minor chord for collisions ~2 octaves lower
@@ -166,7 +172,13 @@ def init_sounds(load_beep=True, freq_hz=880, duration_ms=120, volume=0.5, sample
                 # Eb6 is E-flat at the 6th octave
                 eb6 = e4 * 4.0 * (2 ** (-1/12))
                 g6 = g4 * 4.0
-                _create_chord_wav(low_path, freqs=[c6, eb6, g6], duration_ms=max(160, duration_ms + 40), volume=max(0.25, volume * 0.9), sample_rate=sample_rate)
+                low_args = {
+                    'freqs': [c6, eb6, g6],
+                    'duration_ms': max(160, duration_ms + 40),
+                    'volume': max(0.25, volume * 0.9),
+                    'sample_rate': sample_rate,
+                }
+                _create_chord_wav(low_path, **low_args)
             try:
                 _SFX['low_beep'] = pygame.mixer.Sound(low_path)
             except Exception:
