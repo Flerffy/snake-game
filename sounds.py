@@ -2,7 +2,10 @@ import os
 import math
 import wave
 import struct
+import tempfile
 import pygame
+
+from utils import resource_path
 
 # Simple sound manager for SFX and BGM. Keeps loaded sounds cached so repeated
 # requests reuse the same pygame.mixer.Sound instances.
@@ -10,10 +13,16 @@ import pygame
 _SFX = {}
 _BGM = {}
 _SFX_INITIALIZED = False
-# store sfx and bgm under assets/ for clearer organization
-BASE_ASSETS_DIR = os.path.join(os.path.dirname(__file__), 'assets')
-SFX_DIR = os.path.join(BASE_ASSETS_DIR, 'sfx')
-BGM_DIR = os.path.join(BASE_ASSETS_DIR, 'bgm')
+# For packaged (read-only) assets use resource_path to locate files inside a
+# PyInstaller bundle. For generated files (the code may create wav files at
+# runtime) use a writable temp directory so we don't attempt to write into the
+# application bundle.
+_PACKAGED_BEEP = resource_path(os.path.join('assets', 'sfx', 'sfx_beep.wav'))
+
+# writable area for generated assets (temp dir per system)
+_WRITE_BASE = os.path.join(tempfile.gettempdir(), 'snake_game_assets')
+SFX_DIR = os.path.join(_WRITE_BASE, 'sfx')
+BGM_DIR = os.path.join(_WRITE_BASE, 'bgm')
 _BEEP_PATH = os.path.join(SFX_DIR, 'sfx_beep.wav')
 
 
@@ -145,44 +154,57 @@ def init_sounds(load_beep=True, freq_hz=880, duration_ms=120, volume=0.5, sample
     _ensure_asset_dirs()
     if load_beep:
         try:
-            # default high-pitched beep
-            # Create a high C-major chord for success (C8,E8,G8)
-            c4 = 261.6256
-            e4 = 329.6276
-            g4 = 392.0
-            # target success chord at C8 (4 octaves above C4 -> *16)
-            c8 = c4 * 16.0
-            e8 = e4 * 16.0
-            g8 = g4 * 16.0
-            if not os.path.exists(_BEEP_PATH):
-                chord_args = {
-                    'freqs': [c8, e8, g8],
-                    'duration_ms': duration_ms,
-                    'volume': volume,
-                    'sample_rate': sample_rate,
-                }
-                _create_chord_wav(_BEEP_PATH, **chord_args)
-            snd = pygame.mixer.Sound(_BEEP_PATH)
-            _SFX['beep'] = snd
-            # also create a low-frequency C-minor chord for collisions ~2 octaves lower
-            low_path = os.path.join(SFX_DIR, 'sfx_low_beep.wav')
-            if not os.path.exists(low_path):
-                # use C6 (two octaves above C4 -> *4) for the low beep (C6, Eb6, G6)
-                c6 = c4 * 4.0
-                # Eb6 is E-flat at the 6th octave
-                eb6 = e4 * 4.0 * (2 ** (-1/12))
-                g6 = g4 * 4.0
-                low_args = {
-                    'freqs': [c6, eb6, g6],
-                    'duration_ms': max(160, duration_ms + 40),
-                    'volume': max(0.25, volume * 0.9),
-                    'sample_rate': sample_rate,
-                }
-                _create_chord_wav(low_path, **low_args)
-            try:
-                _SFX['low_beep'] = pygame.mixer.Sound(low_path)
-            except Exception:
-                _SFX.pop('low_beep', None)
+            # If a packaged beep exists (e.g., bundled with PyInstaller), prefer
+            # loading it directly. Otherwise generate a beep WAV in a writable
+            # temp directory and load that.
+            if os.path.exists(_PACKAGED_BEEP):
+                try:
+                    _SFX['beep'] = pygame.mixer.Sound(_PACKAGED_BEEP)
+                except Exception:
+                    _SFX.pop('beep', None)
+            else:
+                # default high-pitched beep
+                # Create a high C-major chord for success (C8,E8,G8)
+                c4 = 261.6256
+                e4 = 329.6276
+                g4 = 392.0
+                # target success chord at C8 (4 octaves above C4 -> *16)
+                c8 = c4 * 16.0
+                e8 = e4 * 16.0
+                g8 = g4 * 16.0
+                if not os.path.exists(_BEEP_PATH):
+                    chord_args = {
+                        'freqs': [c8, e8, g8],
+                        'duration_ms': duration_ms,
+                        'volume': volume,
+                        'sample_rate': sample_rate,
+                    }
+                    _create_chord_wav(_BEEP_PATH, **chord_args)
+                try:
+                    snd = pygame.mixer.Sound(_BEEP_PATH)
+                    _SFX['beep'] = snd
+                except Exception:
+                    _SFX.pop('beep', None)
+
+                # also create a low-frequency C-minor chord for collisions ~2 octaves lower
+                low_path = os.path.join(SFX_DIR, 'sfx_low_beep.wav')
+                if not os.path.exists(low_path):
+                    # use C6 (two octaves above C4 -> *4) for the low beep (C6, Eb6, G6)
+                    c6 = c4 * 4.0
+                    # Eb6 is E-flat at the 6th octave
+                    eb6 = e4 * 4.0 * (2 ** (-1/12))
+                    g6 = g4 * 4.0
+                    low_args = {
+                        'freqs': [c6, eb6, g6],
+                        'duration_ms': max(160, duration_ms + 40),
+                        'volume': max(0.25, volume * 0.9),
+                        'sample_rate': sample_rate,
+                    }
+                    _create_chord_wav(low_path, **low_args)
+                try:
+                    _SFX['low_beep'] = pygame.mixer.Sound(low_path)
+                except Exception:
+                    _SFX.pop('low_beep', None)
         except Exception:
             # keep going; callers will see missing entry
             _SFX.pop('beep', None)

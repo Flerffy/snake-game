@@ -6,6 +6,21 @@ to the new implementation.
 """
 
 from sounds import init_sounds, get_sfx, play_sfx  # re-export helpers
+import os
+import sys
+
+
+def resource_path(relative_path: str) -> str:
+    """Return an absolute path to a resource, working for dev and PyInstaller.
+
+    When running as a PyInstaller bundle, PyInstaller extracts bundled files to
+    a temporary folder accessible via sys._MEIPASS. This helper returns the
+    correct path to use for file loads in both development and frozen modes.
+    """
+    base_path = getattr(sys, "_MEIPASS", None)
+    if base_path is None:
+        base_path = os.path.dirname(__file__)
+    return os.path.join(base_path, relative_path)
 
 
 def init_beep(*args, **kwargs):
