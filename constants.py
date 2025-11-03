@@ -1,7 +1,7 @@
 import pygame
 # Constants stored for game configuration and settings
 
-## Configurable game settings
+# Configurable game settings
 
 # Graphics settings
 # Screen resolution: derived from game area below (can be overridden)
@@ -64,7 +64,7 @@ LEFT_KEY = pygame.K_a  # Key for moving left
 RIGHT_KEY = pygame.K_d  # Key for moving right
 PAUSE_KEY = pygame.K_ESCAPE  # Key for pausing the game
 
-## Hard Game Constants
+# Hard Game Constants
 
 GAME_TITLE = "Snake Game"
 # Snake movement speed
